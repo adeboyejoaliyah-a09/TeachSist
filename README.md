@@ -1,4 +1,4 @@
-# TeachAura
+d# TeachAura
 
 **Teach Smarter. Prepare Better.**
 

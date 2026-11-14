@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TeacherRole {
+  teacher
+  school_admin
+}
+
+enum SyncEntity {
+  classes
+}
+
+enum SyncOperation {
+  upsert
+  delete
+}
+
+enum SyncStatus {
+  accepted
+  rejected
+}
+
+model Teacher {
+  id               String                @id @db.Uuid
+  role             TeacherRole           @default(teacher)
+  plan             String                @default("default")
+  schoolId         String?               @map("school_id") @db.Uuid
+  school           School?               @relation("TeacherSchool", fields: [schoolId], references: [id], onDelete: SetNull)
+  ownedSchools     School[]              @relation("SchoolOwner")
+  classes          SchoolClass[]
+  subjects         Subject[]
+  classSubjects    TeacherClassSubject[]
+  ownedAssignments TeacherClassSubject[] @relation("AssignmentOwner")
+  syncChanges      SyncChange[]
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([schoolId])
+  @@index([updatedAt])
+  @@map("teachers")
+}
+
+model School {
+  id        String    @id @default(uuid()) @db.Uuid
+  ownerId   String    @map("owner_id") @db.Uuid
+  owner     Teacher   @relation("SchoolOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String    @db.VarChar(160)
+  teachers  Teacher[] @relation("TeacherSchool")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([ownerId])
+  @@index([updatedAt])
+  @@map("schools")
+}
+
+model SchoolClass {
+  id         String                @id @default(uuid()) @db.Uuid
+  ownerId    String                @map("owner_id") @db.Uuid
+  owner      Teacher               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name       String                @db.VarChar(120)
+  gradeLevel String?               @map("grade_level") @db.VarChar(80)
+  version    Int                   @default(1)
+  createdAt  DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt  DateTime?             @map("deleted_at") @db.Timestamptz(6)
+  subjects   TeacherClassSubject[]
+
+  @@index([ownerId, updatedAt])
+  @@index([ownerId, deletedAt])
+  @@index([updatedAt])
+  @@map("classes")
+}
+
+model Subject {
+  id            String                @id @default(uuid()) @db.Uuid
+  ownerId       String                @map("owner_id") @db.Uuid
+  owner         Teacher               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name          String                @db.VarChar(120)
+  createdAt     DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt     DateTime?             @map("deleted_at") @db.Timestamptz(6)
+  classSubjects TeacherClassSubject[]
+
+  @@index([ownerId, updatedAt])
+  @@index([updatedAt])
+  @@map("subjects")
+}
+
+model TeacherClassSubject {
+  id        String      @id @default(uuid()) @db.Uuid
+  ownerId   String      @map("owner_id") @db.Uuid
+  teacherId String      @map("teacher_id") @db.Uuid
+  classId   String      @map("class_id") @db.Uuid
+  subjectId String      @map("subject_id") @db.Uuid
+  teacher   Teacher     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  owner     Teacher     @relation("AssignmentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  class     SchoolClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject   Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([teacherId, classId, subjectId])
+  @@index([ownerId])
+  @@index([classId])
+  @@index([subjectId])
+  @@map("teacher_class_subjects")
+}
+
+model SyncChange {
+  id         String        @id @default(uuid()) @db.Uuid
+  ownerId    String        @map("owner_id") @db.Uuid
+  owner      Teacher       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  changeId   String        @map("change_id") @db.Uuid
+  entityType SyncEntity    @map("entity_type")
+  entityId   String        @map("entity_id") @db.Uuid
+  operation  SyncOperation
+  status     SyncStatus
+  result     Json
+  sequence   BigInt        @unique @default(autoincrement())
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([ownerId, changeId])
+  @@index([ownerId, sequence])
+  @@map("sync_changes")
+}

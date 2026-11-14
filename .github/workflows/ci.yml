@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: teachaura
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d teachaura"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/teachaura?schema=public
+      TEST_DATABASE_URL: postgresql://teachaura_app:app_password@localhost:5432/teachaura?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:deploy
+      - name: Prepare restricted application database role
+        run: |
+          docker exec "${{ job.services.postgres.id }}" psql -U postgres -d teachaura -v ON_ERROR_STOP=1 -c "CREATE ROLE teachaura_app LOGIN PASSWORD 'app_password' NOSUPERUSER NOBYPASSRLS"
+          docker exec "${{ job.services.postgres.id }}" psql -U postgres -d teachaura -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA public TO teachaura_app"
+          docker exec "${{ job.services.postgres.id }}" psql -U postgres -d teachaura -v ON_ERROR_STOP=1 -c "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO teachaura_app"
+          docker exec "${{ job.services.postgres.id }}" psql -U postgres -d teachaura -v ON_ERROR_STOP=1 -c "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO teachaura_app"
+      - run: npm run check

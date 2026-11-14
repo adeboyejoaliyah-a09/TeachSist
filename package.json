@@ -1,0 +1,47 @@
+{
+  "name": "teachaura-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "db:generate": "prisma generate",
+    "db:format": "prisma format",
+    "db:format:check": "prisma format --check",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "dev": "tsx watch src/server.ts",
+    "format": "prettier --write src tests docs package.json tsconfig.json eslint.config.js .github/workflows/ci.yml",
+    "format:check": "prettier --check src tests docs package.json tsconfig.json eslint.config.js .github/workflows/ci.yml",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check": "npm run format:check && npm run db:format:check && npm run lint && npm run typecheck && npm run build && npm test"
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^9.1.0",
+    "@prisma/client": "^6.8.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.1.0",
+    "jose": "^6.0.11",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.15.3",
+    "@types/supertest": "^6.0.3",
+    "eslint": "^9.25.1",
+    "prettier": "^3.5.3",
+    "prisma": "^6.8.2",
+    "supertest": "^7.1.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.31.0",
+    "vitest": "^4.1.12"
+  }
+}
